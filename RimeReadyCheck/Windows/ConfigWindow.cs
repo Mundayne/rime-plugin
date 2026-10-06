@@ -1,59 +1,127 @@
-﻿using System;
+using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 
 namespace RimeReadyCheck.Windows;
 
 public class ConfigWindow : Window, IDisposable
 {
-    private Configuration Configuration;
+    private readonly Configuration Configuration;
+    private readonly ReadyCheckSound ReadyCheckSound;
 
     // We give this window a constant ID using ###
     // This allows for labels being dynamic, like "{FPS Counter}fps###XYZ counter window",
     // and the window ID will always be "###XYZ counter window" for ImGui
     public ConfigWindow(Plugin plugin) : base("Rime Ready Check Settings###RimeReadyCheckConfig")
     {
-        Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
-                ImGuiWindowFlags.NoScrollWithMouse;
-
-        Size = new Vector2(232, 90);
-        SizeCondition = ImGuiCond.Always;
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(420, 300),
+            MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
+        };
 
         Configuration = plugin.Configuration;
+        ReadyCheckSound = plugin.ReadyCheckSound;
     }
 
     public void Dispose() { }
 
-    public override void PreDraw()
+    public override void Draw()
     {
-        // Flags must be added or removed before Draw() is being called, or they won't apply
-        if (Configuration.IsConfigWindowMovable)
+        var enabled = Configuration.Enabled;
+        if (ImGui.Checkbox("Enabled", ref enabled))
         {
-            Flags &= ~ImGuiWindowFlags.NoMove;
+            Configuration.Enabled = enabled;
+            Configuration.Save();
+        }
+
+        var playOnOwn = Configuration.PlayOnOwnReadyCheck;
+        if (ImGui.Checkbox("Also play when I start the ready check", ref playOnOwn))
+        {
+            Configuration.PlayOnOwnReadyCheck = playOnOwn;
+            Configuration.Save();
+        }
+
+        ImGui.Separator();
+        DrawCustomSound();
+
+        ImGui.Separator();
+        DrawMutedGameSound();
+    }
+
+    private void DrawCustomSound()
+    {
+        if (ReadyCheckSound.SoundCount == 0)
+        {
+            using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(1f, 0.4f, 0.4f, 1f)))
+                ImGui.TextUnformatted("No sounds found in the plugin's Sounds folder.");
         }
         else
         {
-            Flags |= ImGuiWindowFlags.NoMove;
+            ImGui.TextUnformatted($"Plays one of {ReadyCheckSound.SoundCount} sounds at random.");
+        }
+
+        var volume = Configuration.Volume * 100f;
+        ImGui.SetNextItemWidth(200);
+        if (ImGui.SliderFloat("Volume", ref volume, 0f, 100f, "%.0f%%"))
+        {
+            Configuration.Volume = volume / 100f;
+            Configuration.Save();
+        }
+
+        ImGui.SameLine();
+        using (ImRaii.Disabled(ReadyCheckSound.SoundCount == 0))
+        {
+            if (ImGui.Button("Test"))
+                ReadyCheckSound.PlayRandomSound();
         }
     }
 
-    public override void Draw()
+    private void DrawMutedGameSound()
     {
-        // can't ref a property, so use a local copy
-        var configValue = Configuration.SomePropertyToBeSavedAndWithADefault;
-        if (ImGui.Checkbox("Random Config Bool", ref configValue))
+        ImGui.TextUnformatted("Game sound to mute");
+
+        if (Configuration.MutedGameSoundPath == null)
         {
-            Configuration.SomePropertyToBeSavedAndWithADefault = configValue;
-            // can save immediately on change, if you don't want to provide a "Save and Close" button
-            Configuration.Save();
+            ImGui.TextDisabled("None selected. The game's ready check sound will still play.");
+        }
+        else
+        {
+            ImGui.TextUnformatted($"{Configuration.MutedGameSoundPath} #{Configuration.MutedGameSoundNumber}");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("Clear"))
+            {
+                Configuration.MutedGameSoundPath = null;
+                Configuration.MutedGameSoundNumber = 0;
+                Configuration.Save();
+            }
         }
 
-        var movable = Configuration.IsConfigWindowMovable;
-        if (ImGui.Checkbox("Movable Config Window", ref movable))
+        ImGui.Spacing();
+        ImGui.TextWrapped("Sounds heard around the last ready check. Start or receive a ready check, then pick the one to mute:");
+
+        var detected = ReadyCheckSound.DetectedSounds;
+        if (detected.Count == 0)
         {
-            Configuration.IsConfigWindowMovable = movable;
-            Configuration.Save();
+            ImGui.TextDisabled("No ready check seen yet.");
+            return;
+        }
+
+        for (var i = 0; i < detected.Count; i++)
+        {
+            var sound = detected[i];
+            using var id = ImRaii.PushId(i);
+            if (ImGui.SmallButton("Mute this"))
+            {
+                Configuration.MutedGameSoundPath = sound.Path;
+                Configuration.MutedGameSoundNumber = sound.SoundNumber;
+                Configuration.Save();
+            }
+
+            ImGui.SameLine();
+            ImGui.TextUnformatted($"{sound.Path} #{sound.SoundNumber}");
         }
     }
 }

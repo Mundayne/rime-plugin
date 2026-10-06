@@ -14,9 +14,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="..\Data\goat.png">
+    <PackageReference Include="NAudio" Version="3.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Sounds\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Visible>false</Visible>
     </Content>
   </ItemGroup>
 </Project>
