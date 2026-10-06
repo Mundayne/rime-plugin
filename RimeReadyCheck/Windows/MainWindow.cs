@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Numerics;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
-using ImGuiNET;
 using Lumina.Excel.Sheets;
 
-namespace SamplePlugin.Windows;
+namespace RimeReadyCheck.Windows;
 
 public class MainWindow : Window, IDisposable
 {
@@ -14,10 +14,10 @@ public class MainWindow : Window, IDisposable
     private Plugin Plugin;
 
     // We give this window a hidden ID using ##
-    // So that the user will see "My Amazing Window" as window title,
-    // but for ImGui the ID is "My Amazing Window##With a hidden ID"
+    // So that the user will see "Rime Ready Check" as window title,
+    // but for ImGui the ID is "Rime Ready Check##RimeReadyCheckMain"
     public MainWindow(Plugin plugin, string goatImagePath)
-        : base("My Amazing Window##With a hidden ID", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("Rime Ready Check##RimeReadyCheckMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -60,7 +60,7 @@ public class MainWindow : Window, IDisposable
                 {
                     using (ImRaii.PushIndent(55f))
                     {
-                        ImGui.Image(goatImage.ImGuiHandle, new Vector2(goatImage.Width, goatImage.Height));
+                        ImGui.Image(goatImage.Handle, goatImage.Size);
                     }
                 }
                 else
@@ -71,16 +71,16 @@ public class MainWindow : Window, IDisposable
                 ImGuiHelpers.ScaledDummy(20.0f);
 
                 // Example for other services that Dalamud provides.
-                // ClientState provides a wrapper filled with information about the local player object and client.
+                // PlayerState provides a wrapper filled with information about the player character.
 
-                var localPlayer = Plugin.ClientState.LocalPlayer;
-                if (localPlayer == null)
+                var playerState = Plugin.PlayerState;
+                if (!playerState.IsLoaded)
                 {
                     ImGui.TextUnformatted("Our local player is currently not loaded.");
                     return;
                 }
 
-                if (!localPlayer.ClassJob.IsValid)
+                if (!playerState.ClassJob.IsValid)
                 {
                     ImGui.TextUnformatted("Our current job is currently not valid.");
                     return;
@@ -88,7 +88,7 @@ public class MainWindow : Window, IDisposable
 
                 // ExtractText() should be the preferred method to read Lumina SeStrings,
                 // as ToString does not provide the actual text values, instead gives an encoded macro string.
-                ImGui.TextUnformatted($"Our current job is ({localPlayer.ClassJob.RowId}) \"{localPlayer.ClassJob.Value.Abbreviation.ExtractText()}\"");
+                ImGui.TextUnformatted($"Our current job is ({playerState.ClassJob.RowId}) \"{playerState.ClassJob.Value.Abbreviation.ExtractText()}\"");
 
                 // Example for quarrying Lumina directly, getting the name of our current area.
                 var territoryId = Plugin.ClientState.TerritoryType;
