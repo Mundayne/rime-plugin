@@ -1,0 +1,76 @@
+name: Release
+
+# Push a tag like v0.1.0 to build the plugin, publish latest.zip as a GitHub release,
+# and update repo.json on master so the custom plugin repo offers the new version.
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    env:
+      PLUGIN: RimeReadyCheck
+      DOWNLOAD_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/latest.zip
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Get version from tag
+      id: version
+      run: |
+        $version = '${{ github.ref_name }}'.TrimStart('v')
+        if ($version -notmatch '^\d+(\.\d+){1,3}$') {
+          throw "Tag '${{ github.ref_name }}' is not a version like v1.2.3"
+        }
+        "value=$version" >> $env:GITHUB_OUTPUT
+
+    - name: Install .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Download Dalamud
+      run: |
+        Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
+        Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+
+    - name: Build
+      run: dotnet build --configuration Release -p:Version=${{ steps.version.outputs.value }}
+
+    - name: Create GitHub release
+      run: |
+        gh release create '${{ github.ref_name }}' "$env:PLUGIN\bin\x64\Release\$env:PLUGIN\latest.zip" `
+          --title '${{ github.ref_name }}' --generate-notes
+
+    - name: Update repo.json on master
+      run: |
+        # start from the manifest the build generated, then add the custom repo fields
+        $manifest = Get-Content "$env:PLUGIN\bin\x64\Release\$env:PLUGIN\$env:PLUGIN.json" -Raw | ConvertFrom-Json
+        $manifest | Add-Member -Force RepoUrl 'https://github.com/${{ github.repository }}'
+        $manifest | Add-Member -Force DownloadLinkInstall $env:DOWNLOAD_URL
+        $manifest | Add-Member -Force DownloadLinkUpdate $env:DOWNLOAD_URL
+        $manifest | Add-Member -Force DownloadLinkTesting $env:DOWNLOAD_URL
+        $manifest | Add-Member -Force IsTestingExclusive $false
+        $manifest | Add-Member -Force LastUpdate ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())
+        $json = ConvertTo-Json -InputObject @($manifest) -Depth 5
+
+        git checkout master
+        Set-Content -Path repo.json -Value $json -Encoding utf8NoBOM
+
+        git config user.name 'github-actions[bot]'
+        git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+        git add repo.json
+        git commit -m "Update repo.json to ${{ github.ref_name }}"
+        git push origin master
