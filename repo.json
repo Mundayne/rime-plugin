@@ -3,7 +3,7 @@
     "Author": "Melon Backflip",
     "Name": "Rime Ready Check",
     "InternalName": "RimeReadyCheck",
-    "AssemblyVersion": "1.0.0.0",
+    "AssemblyVersion": "1.1.0.0",
     "Description": "Changes ready check notification to something more appropriate",
     "ApplicableVersion": "any",
     "Tags": [
@@ -18,10 +18,10 @@
     "Punchline": "Wakey Wakey Rime.",
     "AcceptsFeedback": true,
     "RepoUrl": "https://github.com/Mundayne/rime-plugin",
-    "DownloadLinkInstall": "https://github.com/Mundayne/rime-plugin/releases/download/v1.0.0/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/Mundayne/rime-plugin/releases/download/v1.0.0/latest.zip",
-    "DownloadLinkTesting": "https://github.com/Mundayne/rime-plugin/releases/download/v1.0.0/latest.zip",
+    "DownloadLinkInstall": "https://github.com/Mundayne/rime-plugin/releases/download/v1.1.0/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/Mundayne/rime-plugin/releases/download/v1.1.0/latest.zip",
+    "DownloadLinkTesting": "https://github.com/Mundayne/rime-plugin/releases/download/v1.1.0/latest.zip",
     "IsTestingExclusive": false,
-    "LastUpdate": 1791273862
+    "LastUpdate": 1793427224
   }
 ]
