@@ -46,23 +46,10 @@ public class ConfigWindow : Window, IDisposable
 
         ImGui.Separator();
         DrawCustomSound();
-
-        ImGui.Separator();
-        DrawMutedGameSound();
     }
 
     private void DrawCustomSound()
     {
-        if (ReadyCheckSound.SoundCount == 0)
-        {
-            using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(1f, 0.4f, 0.4f, 1f)))
-                ImGui.TextUnformatted("No sounds found in the plugin's Sounds folder.");
-        }
-        else
-        {
-            ImGui.TextUnformatted($"Plays one of {ReadyCheckSound.SoundCount} sounds at random.");
-        }
-
         var volume = Configuration.Volume * 100f;
         ImGui.SetNextItemWidth(200);
         if (ImGui.SliderFloat("Volume", ref volume, 0f, 100f, "%.0f%%"))
@@ -71,57 +58,27 @@ public class ConfigWindow : Window, IDisposable
             Configuration.Save();
         }
 
-        ImGui.SameLine();
-        using (ImRaii.Disabled(ReadyCheckSound.SoundCount == 0))
+        foreach (var evt in Enum.GetValues<ReadyCheckEvent>())
         {
-            if (ImGui.Button("Test"))
-                ReadyCheckSound.PlayRandomSound();
-        }
-    }
+            using var id = ImRaii.PushId((int)evt);
+            ImGui.Spacing();
+            ImGui.TextUnformatted($"On {evt.ToString().ToLowerInvariant()}");
 
-    private void DrawMutedGameSound()
-    {
-        ImGui.TextUnformatted("Game sound to mute");
-
-        if (Configuration.MutedGameSoundPath == null)
-        {
-            ImGui.TextDisabled("None selected. The game's ready check sound will still play.");
-        }
-        else
-        {
-            ImGui.TextUnformatted($"{Configuration.MutedGameSoundPath} #{Configuration.MutedGameSoundNumber}");
-            ImGui.SameLine();
-            if (ImGui.SmallButton("Clear"))
+            var count = ReadyCheckSound.SoundCount(evt);
+            using (ImRaii.PushIndent())
             {
-                Configuration.MutedGameSoundPath = null;
-                Configuration.MutedGameSoundNumber = 0;
-                Configuration.Save();
+                if (count == 0)
+                {
+                    ImGui.TextDisabled($"No sounds in Sounds/{evt}.");
+                }
+                else
+                {
+                    ImGui.TextUnformatted($"Plays one of {count} sound(s) at random.");
+                    ImGui.SameLine();
+                    if (ImGui.SmallButton("Test"))
+                        ReadyCheckSound.PlayRandomSound(evt);
+                }
             }
-        }
-
-        ImGui.Spacing();
-        ImGui.TextWrapped("Sounds heard around the last ready check. Start or receive a ready check, then pick the one to mute:");
-
-        var detected = ReadyCheckSound.DetectedSounds;
-        if (detected.Count == 0)
-        {
-            ImGui.TextDisabled("No ready check seen yet.");
-            return;
-        }
-
-        for (var i = 0; i < detected.Count; i++)
-        {
-            var sound = detected[i];
-            using var id = ImRaii.PushId(i);
-            if (ImGui.SmallButton("Mute this"))
-            {
-                Configuration.MutedGameSoundPath = sound.Path;
-                Configuration.MutedGameSoundNumber = sound.SoundNumber;
-                Configuration.Save();
-            }
-
-            ImGui.SameLine();
-            ImGui.TextUnformatted($"{sound.Path} #{sound.SoundNumber}");
         }
     }
 }
